@@ -1,0 +1,488 @@
+---
+title: "Final Project"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Summary of dataset. (Figure 1)
+```{r, echo=FALSE} 
+full_data <- read.csv("/Users/kaka/Desktop/final project/FP_dataset.csv", header=T)
+full_data <- full_data[,-1]
+summary(full_data)
+```
+
+
+Split origional dataset into traning and validation datasets
+```{r, echo=FALSE} 
+set.seed(2)
+rows <- sample(1:1508, 754, replace=FALSE)
+training_data <- full_data[rows,]
+validation_data <- full_data[-rows,]
+```
+
+
+Scatterplots of response versus each numerical candidate predictor (Appendix Figure 1)
+```{r, echo=FALSE}
+predictors_rows <- c(13:30)
+par(mfrow=c(2,3))
+for(i in predictors_rows){
+    plot(x=training_data[,i], y=training_data[,12], xlab=colnames(training_data)[i], ylab=colnames(training_data)[12])
+}
+```
+
+
+```{r, echo=FALSE}
+for(i in c(4, 13:30)) {
+  par(mfrow=c(2,2))
+  model <- lm(training_data$ADM_RATE ~ training_data[,i])
+  plot(model, 1)
+  plot(model, 3)
+  plot(model, 2)
+  plot(model, 5)
+  mtext(colnames(training_data)[i], side = 1, line = -15, outer = TRUE)
+}
+
+```
+
+
+Attempt to do transformations to increase model validity and model performance
+```{r, echo=FALSE}
+training_data[,12] <- training_data[,12] + 0.05
+training_data[,21] <- training_data[,21] + 0.05
+mult <- lm(cbind(training_data[,4], training_data[,12], training_data[,13], training_data[,14], training_data[,15], training_data[,16], training_data[,17], training_data[,18], training_data[,19], training_data[,20], training_data[,21], training_data[,22], training_data[,23], training_data[,24], training_data[,25], training_data[,26], training_data[,27], training_data[,28], training_data[,29], training_data[,30]) ~ 1)
+library(car)
+summary(powerTransform(mult))
+training_data[,12] <- training_data[,12] - 0.05
+training_data[,21] <- training_data[,21] - 0.05
+```
+
+
+Check for multicollinearity
+```{r, echo=FALSE}
+cor(cbind(training_data[,1], as.factor(training_data[,3]), training_data[,4], as.factor(training_data[,5]), as.factor(training_data[,6]), as.factor(training_data[,7]), as.factor(training_data[,8]), as.factor(training_data[,9]), as.factor(training_data[,10]), as.factor(training_data[,11]), training_data[,12], training_data[,13], training_data[,14], training_data[,15], training_data[,16], training_data[,17], training_data[,18], training_data[,19], training_data[,20], training_data[,21], training_data[,22], training_data[,23], training_data[,24], training_data[,25], training_data[,26], training_data[,27], training_data[,28], training_data[,29], training_data[,30]))
+
+model <- lm(training_data$ADM_RATE ~ as.factor(training_data[,3]) + training_data[,4] + as.factor(training_data[,5]) + as.factor(training_data[,6]) + as.factor(training_data[,7]) + as.factor(training_data[,8]) + as.factor(training_data[,9]) + as.factor(training_data[,10]) + as.factor(training_data[,11]) + training_data[,13] + training_data[,14] + training_data[,15] + training_data[,16] + training_data[,17] + training_data[,18] + training_data[,19] + training_data[,20] + training_data[,21] + training_data[,22] + training_data[,23] + training_data[,24] + training_data[,25] + training_data[,26] + training_data[,27] + training_data[,28] + training_data[,29] + training_data[,30])
+plot(model, 1)
+plot(model, 3)
+plot(model, 2)
+plot(model, 5)
+  
+summary(model)
+```
+
+
+By running individual t-tests, we get an idea of how each predictor relates to the response individually - AVGFACSAL and PCT_GRAD_PROF each relates to ADM_RATE at a significance level of 0.001; NUMBRANCH, CONTROL(=2), HBCU(=1), PFTFAC, UG25ABV, INC_PCT_LO, PCT_ASIAN, PCT_BA, PCT_GRAD_PROF at 0.05. The overall F test is significant, meaning we have an significant overall linear relationship between the response and the predictors. Therefore we proceed to choose predictors.
+```{r, echo=FALSE}
+full <- lm(training_data$ADM_RATE ~ training_data[,1] + as.factor(training_data[,3]) + training_data[,4] + as.factor(training_data[,5]) + as.factor(training_data[,6]) + as.factor(training_data[,7]) + as.factor(training_data[,8]) + as.factor(training_data[,9]) + as.factor(training_data[,10]) + as.factor(training_data[,11]) + training_data[,13] + training_data[,14] + training_data[,15] + training_data[,16] + training_data[,17] + training_data[,18] + training_data[,19] + training_data[,20] + training_data[,21] + training_data[,22] + training_data[,23] + training_data[,24] + training_data[,25] + training_data[,26] + training_data[,27] + training_data[,28] + training_data[,29] + training_data[,30])
+summary(full)$coefficients[,4]
+anova(mod1, full)
+anova(mod2, full)
+anova(mod3, full)
+```
+
+
+AIC Forward selection
+```{r, echo=FALSE}
+require(MASS)
+mod1 <- stepAIC(lm(training_data$ADM_RATE ~ 1), scope=list(upper=lm(training_data$ADM_RATE ~ training_data[,1] + as.factor(training_data[,3]) + training_data[,4] + as.factor(training_data[,5]) + as.factor(training_data[,6]) + as.factor(training_data[,7]) + as.factor(training_data[,8]) + as.factor(training_data[,9]) + as.factor(training_data[,10]) + as.factor(training_data[,11]) + training_data[,13] + training_data[,14] + training_data[,15] + training_data[,16] + training_data[,17] + training_data[,18] + training_data[,19] + training_data[,20] + training_data[,21] + training_data[,22] + training_data[,23] + training_data[,24] + training_data[,25] + training_data[,26] + training_data[,27] + training_data[,28] + training_data[,29] + training_data[,30])), direction="forward", k=2, trace=FALSE)
+
+```
+
+
+AIC Backward selection
+```{r, echo=FALSE}
+require(MASS)
+mod2 <- stepAIC(lm(training_data$ADM_RATE ~ training_data[,1] + as.factor(training_data[,3]) + training_data[,4] + as.factor(training_data[,5]) + as.factor(training_data[,6]) + as.factor(training_data[,7]) + as.factor(training_data[,8]) + as.factor(training_data[,9]) + as.factor(training_data[,10]) + as.factor(training_data[,11]) + training_data[,13] + training_data[,14] + training_data[,15] + training_data[,16] + training_data[,17] + training_data[,18] + training_data[,19] + training_data[,20] + training_data[,21] + training_data[,22] + training_data[,23] + training_data[,24] + training_data[,25] + training_data[,26] + training_data[,27] + training_data[,28] + training_data[,29] + training_data[,30]), scope=list(lower=lm(training_data$ADM_RATE ~ 1)), direction="backward", k=2, trace=FALSE)
+```
+
+
+AIC Stepwise selection
+```{r, echo=FALSE}
+require(MASS)
+mod3 <- stepAIC(lm(training_data$ADM_RATE ~ training_data[,1] + as.factor(training_data[,3]) + training_data[,4] + as.factor(training_data[,5]) + as.factor(training_data[,6]) + as.factor(training_data[,7]) + as.factor(training_data[,8]) + as.factor(training_data[,9]) + as.factor(training_data[,10]) + as.factor(training_data[,11]) + training_data[,13] + training_data[,14] + training_data[,15] + training_data[,16] + training_data[,17] + training_data[,18] + training_data[,19] + training_data[,20] + training_data[,21] + training_data[,22] + training_data[,23] + training_data[,24] + training_data[,25] + training_data[,26] + training_data[,27] + training_data[,28] + training_data[,29] + training_data[,30]), direction="both", k=2, trace=FALSE)
+```
+
+
+BIC Forward selection
+```{r, echo=FALSE}
+require(MASS)
+mod4 <- stepAIC(lm(training_data$ADM_RATE ~ 1), scope=list(upper=lm(training_data$ADM_RATE ~ training_data[,1] + as.factor(training_data[,3]) + training_data[,4] + as.factor(training_data[,5]) + as.factor(training_data[,6]) + as.factor(training_data[,7]) + as.factor(training_data[,8]) + as.factor(training_data[,9]) + as.factor(training_data[,10]) + as.factor(training_data[,11]) + training_data[,13] + training_data[,14] + training_data[,15] + training_data[,16] + training_data[,17] + training_data[,18] + training_data[,19] + training_data[,20] + training_data[,21] + training_data[,22] + training_data[,23] + training_data[,24] + training_data[,25] + training_data[,26] + training_data[,27] + training_data[,28] + training_data[,29] + training_data[,30])), direction="forward", k=log(nrow(training_data)), trace=FALSE)
+```
+
+
+BIC Backward selection
+```{r, echo=FALSE}
+require(MASS)
+mod5 <- stepAIC(lm(training_data$ADM_RATE ~ training_data[,1] + as.factor(training_data[,3]) + training_data[,4] + as.factor(training_data[,5]) + as.factor(training_data[,6]) + as.factor(training_data[,7]) + as.factor(training_data[,8]) + as.factor(training_data[,9]) + as.factor(training_data[,10]) + as.factor(training_data[,11]) + training_data[,13] + training_data[,14] + training_data[,15] + training_data[,16] + training_data[,17] + training_data[,18] + training_data[,19] + training_data[,20] + training_data[,21] + training_data[,22] + training_data[,23] + training_data[,24] + training_data[,25] + training_data[,26] + training_data[,27] + training_data[,28] + training_data[,29] + training_data[,30]), scope=list(lower=lm(training_data$ADM_RATE ~ 1)), direction="backward", k=log(nrow(training_data)), trace=FALSE)
+```
+
+
+BIC stepwise selection
+```{r, echo=FALSE}
+require(MASS)
+mod6 <- stepAIC(lm(training_data$ADM_RATE ~ training_data[,1] + as.factor(training_data[,3]) + training_data[,4] + as.factor(training_data[,5]) + as.factor(training_data[,6]) + as.factor(training_data[,7]) + as.factor(training_data[,8]) + as.factor(training_data[,9]) + as.factor(training_data[,10]) + as.factor(training_data[,11]) + training_data[,13] + training_data[,14] + training_data[,15] + training_data[,16] + training_data[,17] + training_data[,18] + training_data[,19] + training_data[,20] + training_data[,21] + training_data[,22] + training_data[,23] + training_data[,24] + training_data[,25] + training_data[,26] + training_data[,27] + training_data[,28] + training_data[,29] + training_data[,30]), direction="both", k=log(nrow(training_data)), trace=FALSE)
+```
+
+
+Performance of models returned by forward, backward and stepwise of AIC and BIC (Figure 2)
+```{r, echo=FALSE}
+require(MASS)
+models <- list(mod1, mod2, mod3, mod4, mod5, mod6)
+description=c("AIC Forward Model", "AIC Backward Model", "AIC Stepwise Model", "BIC Forward Model", "BIC Backward Model", "BIC Stepwise Model")
+adjusted_r_squareds <- list()
+AICs <- list()
+number_predictors <- list()
+BICs <- list()
+
+for (model in models) {
+  adjusted_r_squareds<-c(adjusted_r_squareds, list(summary(model)$adj.r.squared))
+  AICs<-c(AICs, list(extractAIC(model, k=2)[2]))
+  BICs<-c(BICs, list(extractAIC(model, k=log(nrow(training_data)))[2]))
+  p <- length(model$coef) - 1
+  number_predictors<-c(number_predictors, list(p))
+}
+
+number_predictors <- unlist(number_predictors)
+  AIC_correcteds<-unlist(AICs)+2*(number_predictors+2)*(number_predictors+3)/(nrow(training_data) - 1 - number_predictors)
+
+data.frame("Description"=description, "Number of Predictors"=unlist(number_predictors), "Adjusted R-squared"=unlist(adjusted_r_squareds), AIC=unlist(AICs), BIC=unlist(BICs), "Corrected AIC"=AIC_correcteds)
+```
+
+
+Then we check if any predictor can be removed by generating models with each predictor removed, and calculating the corresponding AIC, BIC, corrected AIC, adjusted-r-squared and r-squared. (Appendix Figure 2)
+```{r, echo=FALSE}
+summary(mod5)
+models <- list(mod4, mod5,
+            lm(training_data$ADM_RATE ~ as.factor(training_data[,5]) + as.factor(training_data[,10]) + training_data[,14] + training_data[,15] + training_data[,23] + training_data[,25]),
+            lm(training_data$ADM_RATE ~ training_data[,4] + as.factor(training_data[,10]) + training_data[,14] + training_data[,15] + training_data[,23] + training_data[,25]),
+            lm(training_data$ADM_RATE ~ training_data[,4] + as.factor(training_data[,5]) +  training_data[,14] + training_data[,15] + training_data[,23] + training_data[,25]),
+            lm(training_data$ADM_RATE ~ training_data[,4] + as.factor(training_data[,5]) + as.factor(training_data[,10]) + training_data[,15] + training_data[,23] + training_data[,25]),
+            lm(training_data$ADM_RATE ~ training_data[,4] + as.factor(training_data[,5]) + as.factor(training_data[,10]) + training_data[,14] + training_data[,23] + training_data[,25]),
+            lm(training_data$ADM_RATE ~ training_data[,4] + as.factor(training_data[,5]) + as.factor(training_data[,10]) + training_data[,14] + training_data[,15] + training_data[,25]),
+            lm(training_data$ADM_RATE ~ training_data[,4] + as.factor(training_data[,5]) + as.factor(training_data[,10]) + training_data[,14] + training_data[,15] + training_data[,23])
+            )
+
+description <- c("BIC Forward Model", "BIC Backward Model", "BIC Backward NUMBRANCH Removed", "BIC Backward CONTROL Removed", "BIC Backward HSI Removed", "BIC Backward AVGFACSAL Removed", "BIC Backward PFTFAC Removed", "BIC Backward PCT_BLACK Removed", "BIC Backward PCT_ASIAN Removed")
+adjusted_r_squareds <- list()
+AICs <- list()
+number_predictors <- list()
+BICs <- list()
+
+for (model in models) {
+  adjusted_r_squareds<-c(adjusted_r_squareds, list(summary(model)$adj.r.squared))
+  AICs<-c(AICs, list(extractAIC(model, k=2)[2]))
+  BICs<-c(BICs, list(extractAIC(model, k=log(nrow(training_data)))[2]))
+  p <- length(model$coef) - 1
+  number_predictors<-c(number_predictors, list(p))
+}
+
+number_predictors <- unlist(number_predictors)
+  AIC_correcteds<-unlist(AICs)+2*(number_predictors+2)*(number_predictors+3)/(nrow(training_data) - 1 - number_predictors)
+
+data.frame("Description"=description, "Number of Predictors"=unlist(number_predictors), "Adjusted R-squared"=unlist(adjusted_r_squareds), AIC=unlist(AICs), BIC=unlist(BICs), "Corrected AIC"=AIC_correcteds)
+```
+
+
+Attempt to add predictors to increase performance
+```{r, echo=FALSE}
+summary(mod5)
+models <- list(mod5,
+            lm(training_data$ADM_RATE ~ training_data[,4] + as.factor(training_data[,5]) + as.factor(training_data[,10]) + training_data[,14] + training_data[,15] + training_data[,23] + training_data[,25] + as.factor(training_data[,3])), 
+            lm(training_data$ADM_RATE ~ training_data[,4] + as.factor(training_data[,5]) + as.factor(training_data[,10]) + training_data[,14] + training_data[,15] + training_data[,23] + training_data[,25] + as.factor(training_data[,6])), 
+            lm(training_data$ADM_RATE ~ training_data[,4] + as.factor(training_data[,5]) + as.factor(training_data[,10]) + training_data[,14] + training_data[,15] + training_data[,23] + training_data[,25] + as.factor(training_data[,7])), 
+            lm(training_data$ADM_RATE ~ training_data[,4] + as.factor(training_data[,5]) + as.factor(training_data[,10]) + training_data[,14] + training_data[,15] + training_data[,23] + training_data[,25] + as.factor(training_data[,8])), 
+            lm(training_data$ADM_RATE ~ training_data[,4] + as.factor(training_data[,5]) + as.factor(training_data[,10]) + training_data[,14] + training_data[,15] + training_data[,23] + training_data[,25] + as.factor(training_data[,9])), 
+            lm(training_data$ADM_RATE ~ training_data[,4] + as.factor(training_data[,5]) + as.factor(training_data[,10]) + training_data[,14] + training_data[,15] + training_data[,23] + training_data[,25] + as.factor(training_data[,11])), 
+            lm(training_data$ADM_RATE ~ training_data[,4] + as.factor(training_data[,5]) + as.factor(training_data[,10]) + training_data[,14] + training_data[,15] + training_data[,23] + training_data[,25] + training_data[,13]), 
+            lm(training_data$ADM_RATE ~ training_data[,4] + as.factor(training_data[,5]) + as.factor(training_data[,10]) + training_data[,14] + training_data[,15] + training_data[,23] + training_data[,25] + training_data[,16]), 
+            lm(training_data$ADM_RATE ~ training_data[,4] + as.factor(training_data[,5]) + as.factor(training_data[,10]) + training_data[,14] + training_data[,15] + training_data[,23] + training_data[,25] + training_data[,17]),
+            lm(training_data$ADM_RATE ~ training_data[,4] + as.factor(training_data[,5]) + as.factor(training_data[,10]) + training_data[,14] + training_data[,15] + training_data[,23] + training_data[,25] + training_data[,18]), 
+            lm(training_data$ADM_RATE ~ training_data[,4] + as.factor(training_data[,5]) + as.factor(training_data[,10]) + training_data[,14] + training_data[,15] + training_data[,23] + training_data[,25] + training_data[,19]), 
+            lm(training_data$ADM_RATE ~ training_data[,4] + as.factor(training_data[,5]) + as.factor(training_data[,10]) + training_data[,14] + training_data[,15] + training_data[,23] + training_data[,25] + training_data[,20]), 
+            lm(training_data$ADM_RATE ~ training_data[,4] + as.factor(training_data[,5]) + as.factor(training_data[,10]) + training_data[,14] + training_data[,15] + training_data[,23] + training_data[,25] + training_data[,21]), 
+            lm(training_data$ADM_RATE ~ training_data[,4] + as.factor(training_data[,5]) + as.factor(training_data[,10]) + training_data[,14] + training_data[,15] + training_data[,23] + training_data[,25] + training_data[,22]), 
+            lm(training_data$ADM_RATE ~ training_data[,4] + as.factor(training_data[,5]) + as.factor(training_data[,10]) + training_data[,14] + training_data[,15] + training_data[,23] + training_data[,25] + training_data[,24]), 
+            lm(training_data$ADM_RATE ~ training_data[,4] + as.factor(training_data[,5]) + as.factor(training_data[,10]) + training_data[,14] + training_data[,15] + training_data[,23] + training_data[,25] + training_data[,26]), 
+            lm(training_data$ADM_RATE ~ training_data[,4] + as.factor(training_data[,5]) + as.factor(training_data[,10]) + training_data[,14] + training_data[,15] + training_data[,23] + training_data[,25] + training_data[,27]), 
+            lm(training_data$ADM_RATE ~ training_data[,4] + as.factor(training_data[,5]) + as.factor(training_data[,10]) + training_data[,14] + training_data[,15] + training_data[,23] + training_data[,25] + training_data[,28]), 
+            lm(training_data$ADM_RATE ~ training_data[,4] + as.factor(training_data[,5]) + as.factor(training_data[,10]) + training_data[,14] + training_data[,15] + training_data[,23] + training_data[,25] + training_data[,29]), 
+            lm(training_data$ADM_RATE ~ training_data[,4] + as.factor(training_data[,5]) + as.factor(training_data[,10]) + training_data[,14] + training_data[,15] + training_data[,23] + training_data[,25] + training_data[,30])
+            )
+
+description <- c("Origional Model", "STABBR Added", "REGION Added", "HBCU Added", "PBI Added", "TRIBAL Added", "WOMENONLY Added", "COSTT4_A Added", "PCTPELL Added", "UG25ABV Added", "INC_PCT_LO Added", "PAR_ED_PCT_1STGEN Added", "FEMALE Added", "MD_FAMINC Added", "PCT_WHITEn Added", "PCT_ASIAN Added", "PCT_BA Added", "PCT_GRAD_PROF Added", "PCT_BORN_US Added", "POVERTY_RATE Added", "UNEMP_RATE Added")
+adjusted_r_squareds <- list()
+AICs <- list()
+number_predictors <- list()
+BICs <- list()
+
+for (model in models) {
+  adjusted_r_squareds<-c(adjusted_r_squareds, list(summary(model)$adj.r.squared))
+  AICs<-c(AICs, list(extractAIC(model, k=2)[2]))
+  BICs<-c(BICs, list(extractAIC(model, k=log(nrow(training_data)))[2]))
+  p <- length(model$coef) - 1
+  number_predictors<-c(number_predictors, list(p))
+}
+
+number_predictors <- unlist(number_predictors)
+  AIC_correcteds<-unlist(AICs)+2*(number_predictors+2)*(number_predictors+3)/(nrow(training_data) - 1 - number_predictors)
+
+data.frame("Description"=description, "Number of Predictors"=unlist(number_predictors), "Adjusted R-squared"=unlist(adjusted_r_squareds), AIC=unlist(AICs), BIC=unlist(BICs), "Corrected AIC"=AIC_correcteds)
+```
+
+
+Performance of models BIC backward with NUMBRANCH removed, and with one additional predictor removed (Appendix Figure 3)
+```{r, echo=FALSE}
+models <- list(
+            lm(training_data$ADM_RATE ~ as.factor(training_data[,5]) + as.factor(training_data[,10]) + training_data[,14] + training_data[,15] + training_data[,23] + training_data[,25]),
+            lm(training_data$ADM_RATE ~ as.factor(as.factor(training_data[,10])) + training_data[,14] + training_data[,15] + training_data[,23] + training_data[,25]),
+            lm(training_data$ADM_RATE ~ as.factor(training_data[,5]) + training_data[,14] + training_data[,15] + training_data[,23] + training_data[,25]),
+            lm(training_data$ADM_RATE ~ as.factor(training_data[,5]) + as.factor(training_data[,10]) + training_data[,15] + training_data[,23] + training_data[,25]),
+            lm(training_data$ADM_RATE ~ as.factor(training_data[,5]) + as.factor(training_data[,10]) + training_data[,14] + training_data[,23] + training_data[,25]),
+            lm(training_data$ADM_RATE ~ as.factor(training_data[,5]) + as.factor(training_data[,10]) + training_data[,14] + training_data[,15] + training_data[,25]),
+            lm(training_data$ADM_RATE ~ as.factor(training_data[,5]) + as.factor(training_data[,10]) + training_data[,14] + training_data[,15] + training_data[,23])
+            )
+
+description <- c("Origional Model", "CONTROL Removed", "HSI Removed", "AVGFACSAL Removed", "PFTFAC Removed", "PCT_BLACK Removed", "PCT_ASIAN Removed")
+adjusted_r_squareds <- list()
+AICs <- list()
+number_predictors <- list()
+BICs <- list()
+
+for (model in models) {
+  adjusted_r_squareds<-c(adjusted_r_squareds, list(summary(model)$adj.r.squared))
+  AICs<-c(AICs, list(extractAIC(model, k=2)[2]))
+  BICs<-c(BICs, list(extractAIC(model, k=log(nrow(training_data)))[2]))
+  p <- length(model$coef) - 1
+  number_predictors<-c(number_predictors, list(p))
+}
+
+number_predictors <- unlist(number_predictors)
+  AIC_correcteds<-unlist(AICs)+2*(number_predictors+2)*(number_predictors+3)/(nrow(training_data) - 1 - number_predictors)
+
+data.frame("Description"=description, "Number of Predictors"=unlist(number_predictors), "Adjusted R-squared"=unlist(adjusted_r_squareds), AIC=unlist(AICs), BIC=unlist(BICs), "Corrected AIC"=AIC_correcteds)
+```
+
+
+Three candidate models
+```{r, echo=FALSE} 
+mod1 <- lm(training_data$ADM_RATE ~ as.factor(training_data[,5]) + as.factor(training_data[,10]) +  training_data[,14] + training_data[,15] + training_data[,23] + training_data[,25])
+mod2 <- lm(training_data$ADM_RATE ~ as.factor(training_data[,5]) +  training_data[,14] + training_data[,15] + training_data[,23] + training_data[,25])
+mod3 <- lm(training_data$ADM_RATE ~ as.factor(training_data[,5]) + as.factor(training_data[,10]) +  training_data[,14] + training_data[,23] + training_data[,25])
+```
+
+
+Diagnostics: extreme observation, influence, model assumptions
+
+Leverage points
+```{r, echo=FALSE}
+h_1 <- hatvalues(mod1)
+threshold_1 <- 2 * (length(mod1$coef) / nrow(training_data))
+leverage_points_1 <- which(h_1 > threshold_1)
+
+h_2 <- hatvalues(mod2)
+threshold_2 <- 2 * (length(mod1$coef) / nrow(training_data))
+leverage_points_2 <- which(h_2 > threshold_2)
+
+h_3 <- hatvalues(mod2)
+threshold_3 <- 2 * (length(mod1$coef) / nrow(training_data))
+leverage_points_3 <- which(h_3 > threshold_3)
+
+colors_1 <- character(nrow(training_data))
+colors_1[] <- "black"
+colors_1[leverage_points_1] <- "red"
+
+colors_2 <- character(nrow(training_data))
+colors_2[] <- "black"
+colors_2[leverage_points_2] <- "red"
+
+colors_3 <- character(nrow(training_data))
+colors_3[] <- "black"
+colors_3[leverage_points_3] <- "red"
+
+length(leverage_points_1)
+length(leverage_points_2)
+length(leverage_points_3)
+
+pairs(training_data[c(5, 10, 14, 15, 23, 25)], col=colors_1)
+pairs(training_data[c(5, 14, 15, 23, 25)], col=colors_2)
+pairs(training_data[c(5, 10, 14, 23, 25)], col=colors_3)
+```
+
+
+Outliers
+```{r, echo=FALSE}
+r_1 <- stdres(mod1)
+outliers_1 <- which(r_1 > 2 | r_1 < -2)
+
+r_2 <- stdres(mod2)
+outliers_2 <- which(r_2 > 2 | r_2 < -2)
+
+r_3 <- stdres(mod3)
+outliers_3 <- which(r_3 > 2 | r_3 < -2)
+
+colors_1 <- character(nrow(training_data))
+colors_1[] <- "black"
+colors_1[outliers_1] <- "red"
+
+colors_2 <- character(nrow(training_data))
+colors_2[] <- "black"
+colors_2[outliers_2] <- "red"
+
+colors_3 <- character(nrow(training_data))
+colors_3[] <- "black"
+colors_3[outliers_3] <- "red"
+
+length(outliers_1)
+length(outliers_2)
+length(outliers_3)
+
+pairs(training_data[c(5, 10, 14, 15, 23, 25)], col=colors_1)
+pairs(training_data[c(5, 14, 15, 23, 25)], col=colors_2)
+pairs(training_data[c(5, 10, 14, 23, 25)], col=colors_3)
+
+intersect(leverage_points_1, outliers_1)
+intersect(leverage_points_2, outliers_2)
+intersect(leverage_points_3, outliers_3)
+```
+
+
+Influence
+```{r, echo=FALSE}
+dfbetas_1 <- dfbetas(mod1)
+dfbetas_2 <- dfbetas(mod2)
+dfbetas_3 <- dfbetas(mod3)
+dfbetas_pts_1 <- which(abs(dfbetas_1) > 2 / sqrt(nrow(training_data)))
+dfbetas_pts_2 <- which(abs(dfbetas_2) > 2 / sqrt(nrow(training_data)))
+dfbetas_pts_3 <- which(abs(dfbetas_3) > 2 / sqrt(nrow(training_data)))
+
+which.max(abs(abs(dfbetas_1)-sqrt(nrow(training_data))))
+
+colors_1 <- character(nrow(training_data))
+colors_1[] <- "black"
+colors_1[dfbetas_pts_1] <- "red"
+colors_2 <- character(nrow(training_data))
+colors_2[] <- "black"
+colors_2[dfbetas_pts_2] <- "red"
+colors_3 <- character(nrow(training_data))
+colors_3[] <- "black"
+colors_3[dfbetas_pts_3] <- "red"
+
+length(dfbetas_pts_1)
+length(dfbetas_pts_2)
+length(dfbetas_pts_3)
+
+colors_1 <- character(nrow(training_data))
+colors_1[] <- "black"
+colors_1[dfbetas_pts_1] <- "red"
+
+colors_2 <- character(nrow(training_data))
+colors_2[] <- "black"
+colors_2[dfbetas_pts_2] <- "red"
+
+colors_3 <- character(nrow(training_data))
+colors_3[] <- "black"
+colors_3[dfbetas_pts_3] <- "red"
+
+pairs(training_data[c(5, 10, 14, 15, 23, 25)], col=colors_1)
+pairs(training_data[c(5, 14, 15, 23, 25)], col=colors_2)
+pairs(training_data[c(5, 10, 14, 23, 25)], col=colors_3)
+```
+
+
+Check multicollinearity
+```{r, echo=FALSE}
+require(MASS) 
+vif(mod1)
+vif(mod2)
+vif(mod3)
+```
+
+
+Diagnostic plots for three candidate models. No violation is seen.
+```{r, echo=FALSE}
+par(mfrow=c(2,2))
+plot(mod1, 1, col=colors_1)
+plot(mod1, 3, col=colors_1)
+plot(mod1, 2, col=colors_1)
+plot(mod1, 5, col=colors_1)
+
+plot(mod2, 1, col=colors_2)
+plot(mod2, 3, col=colors_2)
+plot(mod2, 2, col=colors_2)
+plot(mod2, 5, col=colors_2)
+
+plot(mod3, 1, col=colors_3)
+plot(mod3, 3, col=colors_3)
+plot(mod3, 2, col=colors_3)
+plot(mod3, 5, col=colors_3)
+
+summary(mod2)
+```
+
+
+Check if transformation increase model performance. But no.
+```{r, echo=FALSE}
+training_data[,12] <- training_data[,12] + 0.05
+mult_1 <- lm(cbind(training_data[,12], as.factor(training_data[,5]), as.factor(training_data[,10]), training_data[,14], training_data[,15], training_data[,23], training_data[,25]) ~ 1)
+mult_2 <- lm(cbind(training_data[,12], as.factor(training_data[,5]), training_data[,14], training_data[,15], training_data[,23], training_data[,25]) ~ 1)
+mult_3 <- lm(cbind(training_data[,12], as.factor(training_data[,5]), as.factor(training_data[,10]), training_data[,14], training_data[,23], training_data[,25]) ~ 1)
+library(car)
+summary(powerTransform(mult_1))
+summary(powerTransform(mult_2))
+summary(powerTransform(mult_2))
+training_data[,12] <- training_data[,12] - 0.05
+```
+
+
+Test three candidate models on validation data
+```{r, echo=FALSE} 
+which.max(abs(abs(dfbetas_1)-sqrt(nrow(training_data))))
+which.max(abs(abs(dfbetas_2)-sqrt(nrow(training_data))))
+which.max(abs(abs(dfbetas_3)-sqrt(nrow(training_data))))
+
+mod1_val <- lm(validation_data$ADM_RATE ~ as.factor(validation_data[,5]) + as.factor(validation_data[,10]) + validation_data[,14] + validation_data[,15] + validation_data[,23] + validation_data[,25])
+mod2_val <- lm(validation_data$ADM_RATE ~ as.factor(validation_data[,5])  + validation_data[,14] + validation_data[,15] + validation_data[,23] + validation_data[,25])
+mod3_val <- lm(validation_data$ADM_RATE ~ as.factor(validation_data[,5]) + as.factor(validation_data[,10]) + validation_data[,14] + validation_data[,23] + validation_data[,25])
+
+validation_data_remove <- validation_data[-3254,]
+mod1_val_remove <- lm(validation_data_remove$ADM_RATE ~ as.factor(validation_data_remove[,5]) + as.factor(validation_data_remove[,10]) + validation_data_remove[,14] + validation_data_remove[,15] + validation_data_remove[,23] + validation_data_remove[,25])
+mod2_val_remove <- lm(validation_data_remove$ADM_RATE ~ as.factor(validation_data_remove[,5])  + validation_data_remove[,14] + validation_data_remove[,15] + validation_data_remove[,23] + validation_data_remove[,25])
+mod3_val_remove <- lm(validation_data_remove$ADM_RATE ~ as.factor(validation_data_remove[,5]) + as.factor(validation_data_remove[,10]) + validation_data_remove[,14] + validation_data_remove[,23] + validation_data_remove[,25])
+
+
+dfbetas_1 <- dfbetas(mod1_val)
+dfbetas_2 <- dfbetas(mod2_val)
+dfbetas_3 <- dfbetas(mod3_val)
+dfbetas_pts_1 <- which(abs(dfbetas_1) > 2 / sqrt(nrow(validation_data)))
+dfbetas_pts_2 <- which(abs(dfbetas_2) > 2 / sqrt(nrow(validation_data)))
+dfbetas_pts_3 <- which(abs(dfbetas_3) > 2 / sqrt(nrow(validation_data)))
+
+which.max(abs(abs(dfbetas_1)-sqrt(nrow(validation_data))))
+which.max(abs(abs(dfbetas_2)-sqrt(nrow(validation_data))))
+which.max(abs(abs(dfbetas_3)-sqrt(nrow(validation_data))))
+
+training_data_remove <- training_data[-2770,]
+mod1_remove <- lm(training_data_remove$ADM_RATE ~ as.factor(training_data_remove[,5]) + as.factor(training_data_remove[,10]) +  training_data_remove[,14] + training_data_remove[,15] + training_data_remove[,23] + training_data_remove[,25])
+mod2_remove <- lm(training_data_remove$ADM_RATE ~ as.factor(training_data_remove[,5]) +  training_data_remove[,14] + training_data_remove[,15] + training_data_remove[,23] + training_data_remove[,25])
+mod3_remove <- lm(training_data_remove$ADM_RATE ~ as.factor(training_data_remove[,5]) + as.factor(training_data_remove[,10]) +  training_data_remove[,14] + training_data_remove[,23] + training_data_remove[,25])
+
+summary(mod1)
+summary(mod1_remove)
+summary(mod1_val)
+summary(mod1_val_remove)
+summary(mod2)
+summary(mod2_remove)
+summary(mod2_val)
+summary(mod2_val_remove)
+summary(mod3)
+summary(mod3_remove)
+summary(mod3_val)
+summary(mod3_val_remove)
+
+
+```
+
